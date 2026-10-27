@@ -1,1 +1,1 @@
-{"author":{"id":"ec5a1740e251d27ead311b66defd1a33fa605b99e4ec620cc280e0ba162011eb"},"ops":[{"type":5,"timestamp":1793140718,"nonce":"ZRnsNW82Xq05ocENTlOELdg/+tw=","added":["priority:medium"],"removed":null}]}
+{"author":{"id":"ec5a1740e251d27ead311b66defd1a33fa605b99e4ec620cc280e0ba162011eb"},"ops":[{"type":2,"timestamp":1793140723,"nonce":"Mnv5syOQ1OgnUc5y5dENTt79398=","title":"Testy wydajnościowe JMH dla extension i parserów","was":"Przygotować testy wydajnościowe JMH i zmierzyć, ile czasu extension dokłada do każdego uruchomienia Mavena."}]}

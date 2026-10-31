@@ -9,13 +9,15 @@
 # Steps (each Maven call is a separate JVM, because versions:set rewrites pom.xml on disk and a
 # running build would keep the old in-memory version):
 #   1. versions:set -DremoveSnapshot            + commit "Release X"
-#   2. mvn clean deploy -Pdeployment            builds, signs and publishes to Central
+#   2. mvn clean deploy -Pdeployment            builds, signs, uploads to Central and waits
+#                                               until Central reports PUBLISHED (up to 30 min)
 #   3. git tag -a vX
 #   4. versions:set -DnextSnapshot (PATCH + 1)  + commit "Prepare next development iteration"
 #
 # Needs: a clean working tree with at least one commit, gpg.keyname (settings.xml or -D) and the
 # `central` server in settings.xml. The GPG passphrase is read from MAVEN_GPG_PASSPHRASE if set,
-# otherwise the gpg plugin asks for it. The tag is created only after a successful deploy.
+# otherwise the gpg plugin asks for it. The tag is created only after Central has validated and
+# published the deployment; a rejected deployment fails the build and leaves no tag.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -53,7 +55,8 @@ mvn -B -q versions:set -DremoveSnapshot=true
 git commit -m "Release $RELEASE" -- pom.xml
 
 if ! mvn clean deploy -Pdeployment; then
-    echo "release: deploy failed; pom.xml still says $RELEASE in the commit 'Release $RELEASE'." >&2
+    echo "release: deploy failed or Central rejected it; the commit 'Release $RELEASE' is still there." >&2
+    echo "         See https://central.sonatype.com/publishing (drop a failed deployment there)." >&2
     echo "         Fix the cause and run 'mvn clean deploy -Pdeployment', or undo with 'git reset --hard HEAD~1'." >&2
     exit 1
 fi

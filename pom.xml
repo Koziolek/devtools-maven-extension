@@ -428,7 +428,9 @@
                         <configuration>
                             <publishingServerId>central</publishingServerId>
                             <autoPublish>true</autoPublish>
-                            <waitUntil>uploaded</waitUntil>
+                            <!-- Block until Central reports PUBLISHED (a failed validation fails the build, so
+                                 release.sh does not tag); waitMaxTime defaults to 1800 s. -->
+                            <waitUntil>published</waitUntil>
                         </configuration>
                     </plugin>
                 </plugins>

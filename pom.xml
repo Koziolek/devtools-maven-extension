@@ -6,7 +6,7 @@
 
     <groupId>pl.koziolekweb</groupId>
     <artifactId>devtools-maven-extension</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>Dev Tools Maven Core Extension</name>
     <description>Maven Core Extension that reads dev-tool version files (.sdkmanrc, .tool-versions, mise.toml, .nvmrc,

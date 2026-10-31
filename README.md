@@ -173,55 +173,12 @@ Then register it in the target project's `.mvn/extensions.xml`:
   <extension>
     <groupId>pl.koziolekweb</groupId>
     <artifactId>devtools-maven-extension</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
   </extension>
 </extensions>
 ```
 
 Maven loads `.mvn/extensions.xml` as a core extension before constructing projects.
-
-## Deployment to Maven Central
-
-Releases are published to Maven Central through Sonatype's Central Publisher Portal, using
-the `deployment` profile (`maven-source-plugin`, `maven-javadoc-plugin`, `maven-gpg-plugin`,
-`central-publishing-maven-plugin`).
-
-### One-time setup
-
-1. Generate a GPG key and publish it to a public keyserver:
-
-   ```bash
-   gpg --gen-key
-   gpg --keyserver keyserver.ubuntu.com --send-keys <KEY_ID>
-   ```
-
-2. Create a token in the [Central Publisher Portal](https://central.sonatype.com/) for the
-   `pl.koziolekweb` namespace, then add it to `~/.m2/settings.xml`:
-
-   ```xml
-   <settings>
-     <servers>
-       <server>
-         <id>central</id>
-         <username>YOUR_TOKEN_USERNAME</username>
-         <password>YOUR_TOKEN_PASSWORD</password>
-       </server>
-     </servers>
-   </settings>
-   ```
-
-### Releasing
-
-1. Set the release version (drop `-SNAPSHOT`) in `pom.xml`.
-2. Deploy:
-
-   ```bash
-   mvn clean deploy -P deployment -Dgpg.keyname=<KEY_ID>
-   ```
-
-   `central-publishing-maven-plugin` uploads and (with `autoPublish=true`) publishes the
-   artifact automatically once validation passes.
-3. Bump `pom.xml` back to the next `-SNAPSHOT` version for continued development.
 
 ## Files searched
 
@@ -436,47 +393,6 @@ absurd inputs.
 measurable cost is one-off class loading: ≈ 41 ms for toml-java in projects with a `mise.toml` or
 `.prototools`, ≈ 7 ms for Moshi in projects with a JSON tool file. Projects with neither pay
 ≈ 5.0 ms for all parsers together.
-
-## SonarQube
-
-The `pom.xml` only declares that the project is analysed with SonarQube (`sonar-maven-plugin`, the
-JaCoCo report path) and binds the `sonar` goal to `verify` behind a switch,
-`sonar.verify.skip`, which is `true` in the pom. So by default `mvn verify` does not analyse, and
-no server is configured there. Locally the settings profile below flips the switch:
-
-```bash
-mvn clean verify          # analyses when the sonar-local profile is active
-mvn verify sonar:sonar    # explicit run; ignores the switch, so existing CI configs keep working
-```
-
-The server comes from outside the project:
-
-- **Locally**, from a `sonar-local` profile in `~/.m2/settings.xml` that sets `sonar.host.url` and
-  `sonar.verify.skip=false`. It is active only for the user named in `env.USER`, so CI agents and
-  other accounts never activate it. Do not also list it under `<activeProfiles>`: that would
-  activate it regardless of the guard.
-- **On CI**, from whatever CI already uses: `-Dsonar.host.url=... -Dsonar.token=...`, its own
-  settings or `SONAR_TOKEN`. Options given with `-D` always win over a profile property.
-
-Profile for `~/.m2/settings.xml` (inside `<profiles>`):
-
-```xml
-<profile>
-  <id>sonar-local</id>
-  <activation>
-    <property><name>env.USER</name><value>your-login</value></property>
-  </activation>
-  <properties>
-    <sonar.host.url>https://koziolek.home/sonar</sonar.host.url>
-    <sonar.verify.skip>false</sonar.verify.skip>
-  </properties>
-</profile>
-```
-
-The token is not stored in `settings.xml`: export `SONAR_TOKEN` (a user or project analysis token
-from SonarQube, *My Account > Security*) or pass `-Dsonar.token=...`. If the server sits behind a
-reverse proxy, the proxy must accept the analysis report upload (nginx: `client_max_body_size`
-well above its 1 MB default, otherwise the upload fails with HTTP 413).
 
 ## License
 

@@ -1,0 +1,534 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>pl.koziolekweb</groupId>
+    <artifactId>devtools-maven-extension</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>Dev Tools Maven Core Extension</name>
+    <description>Maven Core Extension that reads dev-tool version files (.sdkmanrc, .tool-versions, mise.toml, .nvmrc,
+        package.json, .env and more) from the reactor root and exposes them as Maven properties (sdkman.*, asdf.*,
+        mise.*, nvm.*, ...) for POM interpolation.
+    </description>
+    <url>https://github.com/koziolek/devtools-maven-extension</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <name>Bartek Kuczyński</name>
+            <email>bjkuczynski@gmail.com</email>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/koziolek/devtools-maven-extension.git</connection>
+        <developerConnection>scm:git:https://github.com/koziolek/devtools-maven-extension.git</developerConnection>
+        <url>https://github.com/koziolek/devtools-maven-extension</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <properties>
+        <maven.version>3.9.9</maven.version>
+        <maven.compiler.release>8</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
+        <central-publishing-maven-plugin.version>0.6.0</central-publishing-maven-plugin.version>
+        <checkstyle.version>11.1.0</checkstyle.version>
+        <fluido.skin.darkmode>true</fluido.skin.darkmode>
+        <google-java-format.version>1.30.0</google-java-format.version>
+        <jacoco.version>0.8.13</jacoco.version>
+        <jmh.version>1.37</jmh.version>
+        <sisu.version>0.9.0.M3</sisu.version>
+        <sonar.verify.skip>true</sonar.verify.skip>
+        <sonar-maven-plugin.version>5.7.0.6970</sonar-maven-plugin.version>
+        <!-- Where JaCoCo's `report` (bound to `test` below) writes the XML SonarQube reads. -->
+        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml
+        </sonar.coverage.jacoco.xmlReportPaths>
+        <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+        <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
+        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
+        <maven-fluido-skin.version>2.1.0</maven-fluido-skin.version>
+        <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
+        <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
+        <maven-project-info-reports-plugin.version>3.9.0</maven-project-info-reports-plugin.version>
+        <!-- Must stay paired with a Doxia-2-native maven-site-plugin (3.21.0+): 3.12.1 still
+             mixes doxia-module-markdown 1.11.1 into an otherwise Doxia 2.0.0 realm, and that split
+             classpath is what causes NoSuchMethodError on Sink.verbatim() in maven-project-info-
+             reports-plugin — see https://github.com/apache/maven-project-info-reports-plugin/issues/103,
+             which blames the report plugin but the actual mixed-realm cause is maven-site-plugin's
+             own transitional dependency tree. Verify with:
+             `mvn dependency:resolve-plugins` and grep the maven-site-plugin block for `doxia` —
+             it must show one Doxia version only. -->
+        <maven-site-plugin.version>3.22.0</maven-site-plugin.version>
+        <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
+        <maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
+        <spotless-maven-plugin.version>3.10.2</spotless-maven-plugin.version>
+        <versions-maven-plugin.version>2.22.0</versions-maven-plugin.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.squareup.moshi</groupId>
+            <artifactId>moshi</artifactId>
+            <version>1.15.2</version>
+        </dependency>
+        <dependency>
+            <groupId>net.vieiro</groupId>
+            <artifactId>toml-java</artifactId>
+            <version>13.5.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-core</artifactId>
+            <version>${maven.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>javax.inject</groupId>
+            <artifactId>javax.inject</artifactId>
+            <version>1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.18</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.18</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>6.1.3</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <!-- Generates META-INF/sisu/javax.inject.Named from the @Named classes, so a new
+                             parser is registered just by existing. The processor must be named explicitly:
+                             since JDK 23 javac no longer runs annotation processors found only on the
+                             classpath, and the Sisu jar does not register it via META-INF/services.
+                             Main sources only; the benchmarks profile has its own default-testCompile. -->
+                        <id>default-compile</id>
+                        <configuration>
+                            <annotationProcessorPaths>
+                                <path>
+                                    <groupId>org.eclipse.sisu</groupId>
+                                    <artifactId>org.eclipse.sisu.inject</artifactId>
+                                    <version>${sisu.version}</version>
+                                </path>
+                            </annotationProcessorPaths>
+                            <annotationProcessors>
+                                <annotationProcessor>org.eclipse.sisu.space.SisuIndexAPT6</annotationProcessor>
+                            </annotationProcessors>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+                <configuration>
+                    <useModulePath>false</useModulePath>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <!-- Used by release.sh: versions:set -DremoveSnapshot, then -DnextSnapshot. Declared here so
+                     `mvn versions:set` resolves to this version. No pom.xml.versionsBackup files. -->
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>versions-maven-plugin</artifactId>
+                <version>${versions-maven-plugin.version}</version>
+                <configuration>
+                    <generateBackupPoms>false</generateBackupPoms>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless-maven-plugin.version}</version>
+                <configuration>
+                    <java>
+                        <googleJavaFormat>
+                            <version>${google-java-format.version}</version>
+                            <style>AOSP</style>
+                        </googleJavaFormat>
+                        <importOrder>
+                            <order>\#,</order>
+                        </importOrder>
+                        <removeUnusedImports/>
+                        <!-- google-java-format cannot indent a switch the way checkstyle.xml requires
+                             (caseIndent 2); such blocks are fenced with spotless:off / spotless:on -->
+                        <toggleOffOn/>
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>format-validation</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>apply</goal>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${maven-checkstyle-plugin.version}</version>
+                <configuration>
+                    <configLocation>checkstyle.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <failsOnError>true</failsOnError>
+                    <linkXRef>false</linkXRef>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                    <outputFile>${project.build.directory}/checkstyle-report.html</outputFile>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>${checkstyle.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <id>validate</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>checkstyle</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>checkstyle-report</id>
+                        <phase>site</phase>
+                        <goals>
+                            <goal>checkstyle</goal>
+                        </goals>
+                        <configuration>
+                            <outputFile>${project.build.directory}/checkstyle-report.xml</outputFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>default-prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>default-report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+                <version>${sonar-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>sonar-verify</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sonar</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${sonar.verify.skip}</skip>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven-javadoc-plugin.version}</version>
+            </plugin>
+
+            <plugin>
+                <!-- Config-only: not bound to the default lifecycle, so `mvn install`/`verify` stay
+                     unaffected. Run explicitly with `mvn site`. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-site-plugin</artifactId>
+                <version>${maven-site-plugin.version}</version>
+                <configuration>
+                    <outputDirectory>${project.basedir}/docs</outputDirectory>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.maven.skins</groupId>
+                        <artifactId>maven-fluido-skin</artifactId>
+                        <version>${maven-fluido-skin.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
+                <configuration>
+                    <rules>
+                        <requireMavenVersion>
+                            <version>3.8.0</version>
+                        </requireMavenVersion>
+                    </rules>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <reporting>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${maven-checkstyle-plugin.version}</version>
+                <configuration>
+                    <configLocation>checkstyle.xml</configLocation>
+                    <linkXRef>false</linkXRef>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven-javadoc-plugin.version}</version>
+                <reportSets>
+                    <reportSet>
+                        <!-- Test classes here are package-private JUnit tests, not a public API — only
+                             the main-source javadoc is meaningful to publish. -->
+                        <reports>
+                            <report>javadoc-no-fork</report>
+                        </reports>
+                    </reportSet>
+                </reportSets>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-site-plugin</artifactId>
+                <version>${maven-site-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <!-- See the comment on maven-site-plugin.version in <properties>: this plugin only
+                     works when paired with a Doxia-2-native site-plugin. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-project-info-reports-plugin</artifactId>
+                <version>${maven-project-info-reports-plugin.version}</version>
+            </plugin>
+        </plugins>
+    </reporting>
+
+    <profiles>
+        <profile>
+            <id>deployment</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>${maven-source-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>${maven-javadoc-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <keyname>${gpg.keyname}</keyname>
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>uploaded</waitUntil>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>benchmarks</id>
+            <activation>
+                <!-- IntelliJ sets idea.version while importing the project, so the IDE sees
+                     src/benchmark/java as a test source root and resolves JMH. Other IDEs (and plain
+                     Maven): enable the profile by hand, e.g. -Pbenchmarks. -->
+                <property>
+                    <name>idea.version</name>
+                </property>
+            </activation>
+            <properties>
+                <!-- Regular expression selecting benchmarks, e.g. -Djmh.include=ColdStartBenchmark -->
+                <jmh.include>.*</jmh.include>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>org.openjdk.jmh</groupId>
+                    <artifactId>jmh-core</artifactId>
+                    <version>${jmh.version}</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <!-- The JMH generator must be named explicitly: since JDK 23 javac no longer runs
+                             annotation processors found only on the classpath, and without it there is no
+                             META-INF/BenchmarkList ("Unable to find the resource: /META-INF/BenchmarkList"). -->
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default-testCompile</id>
+                                <configuration>
+                                    <annotationProcessorPaths>
+                                        <path>
+                                            <groupId>org.openjdk.jmh</groupId>
+                                            <artifactId>jmh-generator-annprocess</artifactId>
+                                            <version>${jmh.version}</version>
+                                        </path>
+                                    </annotationProcessorPaths>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <version>${build-helper-maven-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>add-benchmark-sources</id>
+                                <phase>generate-test-sources</phase>
+                                <goals>
+                                    <goal>add-test-source</goal>
+                                </goals>
+                                <configuration>
+                                    <sources>
+                                        <source>src/benchmark/java</source>
+                                    </sources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <!-- BenchmarkRunnerTest (tag "benchmark") starts JMH. The usual way to run it is
+                             `mvn -Pbenchmarks test -Dtest=BenchmarkRunnerTest`; the `jmh` execution below
+                             runs only the tagged test and is bound to no phase. -->
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default-test</id>
+                            </execution>
+                            <execution>
+                                <id>jmh</id>
+                                <!-- No phase: runs only when invoked as `mvn -Pbenchmarks test-compile surefire:test@jmh`. -->
+                                <phase>none</phase>
+                                <goals>
+                                    <goal>test</goal>
+                                </goals>
+                                <configuration>
+                                    <groups>benchmark</groups>
+                                    <!-- JMH forks JVMs from java.class.path, which must be the real classpath. -->
+                                    <useManifestOnlyJar>false</useManifestOnlyJar>
+                                    <systemPropertyVariables>
+                                        <jmh.include>${jmh.include}</jmh.include>
+                                        <jmh.result>${project.build.directory}/jmh-result.json</jmh.result>
+                                    </systemPropertyVariables>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

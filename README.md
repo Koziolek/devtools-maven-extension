@@ -288,6 +288,26 @@ fails the build.
 - Tests run on one thread (`LogCapture` swaps `System.err`). The POSIX permission tests are skipped as root, so
   the "unreadable file" paths show up as surviving mutants there.
 
+## Dependency vulnerabilities (OWASP)
+
+[OWASP Dependency-Check](https://dependency-check.github.io/DependencyCheck/) compares the runtime dependencies with
+the NVD. It runs in `mvn verify` (execution `dependency-check-verify`) and is **report only**: `failBuildOnCVSS=11`
+(never) and `failOnError=false`, so neither a finding nor an NVD outage fails the build.
+
+- Reports: `target/dependency-check-report.html`, `.json` and `.sarif`.
+- Needs the `NVD_API_KEY` environment variable ([free key](https://nvd.nist.gov/developers/request-an-api-key)).
+  Without it the profile `odc-no-key` skips the check, because the first download is throttled to hours.
+- Database: `~/.m2/repository/org/owasp/dependency-check-data/odc.mv.db`, about 250 MB. The first run downloads all
+  of the NVD (about 30 minutes with a key); later runs update it incrementally and skip the update for 4 hours.
+- Skip: `-Ddependency-check.skip=true`. Only compile scope is checked (`skipProvidedScope`, tests skipped by default).
+- SonarQube: `sonar.sarifReportPaths` points at the SARIF file, which SonarQube's built-in SARIF sensor imports (no
+  server plugin). The jar locations lie outside the project, so the issues are attached to the project itself
+  (a `WARNING` per issue in the scanner log). They show up as `external_dependency-check:<CVE>` vulnerabilities. A
+  missing file, when the check is skipped, only logs a `WARNING`.
+- Moshi pulls in Kotlin 1.8/1.9, which NVD marks as affected by CVE-2020-29582 (below 2.1.0). `dependencyManagement`
+  therefore pins `kotlin-stdlib`, `-jdk7` and `-jdk8` to `${kotlin.version}`; keep it at 2.1.0 or newer. A finding that
+  cannot be fixed that way belongs in a suppression file, with the reason written down.
+
 ## Benchmarks
 
 JMH benchmarks live in `src/benchmark/java` and are only built with the `benchmarks` profile, so

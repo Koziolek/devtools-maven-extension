@@ -50,12 +50,18 @@
         <google-java-format.version>1.30.0</google-java-format.version>
         <jacoco.version>0.8.13</jacoco.version>
         <jmh.version>1.37</jmh.version>
+        <kotlin.version>2.1.21</kotlin.version>
+        <dependency-check-maven.version>13.0.0</dependency-check-maven.version>
         <sisu.version>0.9.0.M3</sisu.version>
         <sonar.verify.skip>true</sonar.verify.skip>
         <sonar-maven-plugin.version>5.7.0.6970</sonar-maven-plugin.version>
         <!-- Where JaCoCo's `report` (bound to `test` below) writes the XML SonarQube reads. -->
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml
         </sonar.coverage.jacoco.xmlReportPaths>
+        <!-- Dependency-Check's SARIF, imported by SonarQube's built-in SARIF sensor (no server plugin needed). The
+             jar locations in it lie outside the project, so Sonar attaches the issues to the project itself.
+             A missing file (check skipped) only logs a WARNING. -->
+        <sonar.sarifReportPaths>${project.build.directory}/dependency-check-report.sarif</sonar.sarifReportPaths>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
@@ -79,6 +85,31 @@
         <spotless-maven-plugin.version>3.10.2</spotless-maven-plugin.version>
         <versions-maven-plugin.version>2.22.0</versions-maven-plugin.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Moshi -> Okio pull in Kotlin 1.8/1.9. NVD marks every Kotlin below 2.1.0 as affected by
+                 CVE-2020-29582 (insecure temp files in the deprecated kotlin.io.createTempFile/createTempDir), which
+                 Dependency-Check reports. Nothing here calls those functions, but a newer stdlib clears the finding
+                 for real instead of suppressing it. Kotlin keeps backward compatibility, so Okio/Moshi (built
+                 with 1.9) run unchanged. -->
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib</artifactId>
+                <version>${kotlin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk7</artifactId>
+                <version>${kotlin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk8</artifactId>
+                <version>${kotlin.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -289,6 +320,14 @@
                     <targetTests>
                         <param>pl.koziolekweb.devtoolsmavenplugin.*</param>
                     </targetTests>
+                    <!-- With -Pbenchmarks src/benchmark lands in test-classes; BenchmarkRunnerTest would run JMH
+                         (about ten minutes) in the coverage phase and again for every mutant. -->
+                    <excludedTestClasses>
+                        <param>pl.koziolekweb.devtoolsmavenplugin.Benchmark*</param>
+                    </excludedTestClasses>
+                    <excludedGroups>
+                        <excludedGroup>benchmark</excludedGroup>
+                    </excludedGroups>
                     <outputFormats>
                         <outputFormat>XML</outputFormat>
                         <outputFormat>HTML</outputFormat>
@@ -304,6 +343,41 @@
                         <phase>verify</phase>
                         <goals>
                             <goal>mutationCoverage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <!-- OWASP Dependency-Check: known vulnerabilities (CVE) in the runtime dependencies. Report only: it
+                     never fails the build (failBuildOnCVSS=11 means "never", failOnError=false covers NVD or
+                     network trouble). Reports: target/dependency-check-report.{html,json,sarif}.
+                     The NVD database lives in ~/.m2/repository/org/owasp/dependency-check-data and is updated
+                     incrementally; the first run downloads all of it and needs NVD_API_KEY (without it the
+                     profile `odc-no-key` below skips the check). Skip by hand: -Ddependency-check.skip=true. -->
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>${dependency-check-maven.version}</version>
+                <configuration>
+                    <formats>
+                        <format>HTML</format>
+                        <format>JSON</format>
+                        <format>SARIF</format>
+                    </formats>
+                    <failBuildOnCVSS>11</failBuildOnCVSS>
+                    <failOnError>false</failOnError>
+                    <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+                    <skipProvidedScope>true</skipProvidedScope>
+                    <ossIndexAnalyzerEnabled>false</ossIndexAnalyzerEnabled>
+                    <retireJsAnalyzerEnabled>false</retireJsAnalyzerEnabled>
+                    <nodeAuditAnalyzerEnabled>false</nodeAuditAnalyzerEnabled>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>dependency-check-verify</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -413,6 +487,18 @@
     </reporting>
 
     <profiles>
+        <profile>
+            <id>odc-no-key</id>
+            <!-- Without an NVD API key the first database download is throttled to hours: skip instead. -->
+            <activation>
+                <property>
+                    <name>!env.NVD_API_KEY</name>
+                </property>
+            </activation>
+            <properties>
+                <dependency-check.skip>true</dependency-check.skip>
+            </properties>
+        </profile>
         <profile>
             <id>deployment</id>
             <build>

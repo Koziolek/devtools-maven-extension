@@ -72,6 +72,8 @@
              `mvn dependency:resolve-plugins` and grep the maven-site-plugin block for `doxia` —
              it must show one Doxia version only. -->
         <maven-site-plugin.version>3.22.0</maven-site-plugin.version>
+        <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
+        <pitest-maven.version>1.30.1</pitest-maven.version>
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
         <spotless-maven-plugin.version>3.10.2</spotless-maven-plugin.version>
@@ -260,6 +262,48 @@
                         <phase>test</phase>
                         <goals>
                             <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <!-- Mutation testing, report only: runs at `verify` and never fails the build (no thresholds,
+                     failWhenNoMutations=false). Report: target/pit-reports/index.html. Alone, without the rest
+                     of the lifecycle: `mvn test-compile pitest:mutationCoverage`; skip: `-DskipPitest=true`.
+                     threads=1: LogCapture swaps System.err, which is global state. -->
+                <groupId>org.pitest</groupId>
+                <artifactId>pitest-maven</artifactId>
+                <version>${pitest-maven.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-junit5-plugin</artifactId>
+                        <version>${pitest-junit5-plugin.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <targetClasses>
+                        <param>pl.koziolekweb.devtoolsmavenplugin.*</param>
+                    </targetClasses>
+                    <targetTests>
+                        <param>pl.koziolekweb.devtoolsmavenplugin.*</param>
+                    </targetTests>
+                    <outputFormats>
+                        <outputFormat>XML</outputFormat>
+                        <outputFormat>HTML</outputFormat>
+                    </outputFormats>
+                    <threads>1</threads>
+                    <failWhenNoMutations>false</failWhenNoMutations>
+                    <mutationThreshold>0</mutationThreshold>
+                    <coverageThreshold>0</coverageThreshold>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>pitest-verify</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>mutationCoverage</goal>
                         </goals>
                     </execution>
                 </executions>

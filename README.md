@@ -275,6 +275,19 @@ sources. Naming rules are strict too: no two consecutive capital letters in a na
 `InASingleModule` or `stripsLeadingVPrefix` are rejected, and a method name has a lowercase second
 letter.
 
+## Mutation testing
+
+[PIT](https://pitest.org) (pitest) mutates the bytecode and checks that the tests notice. It runs in `mvn verify`
+(execution `pitest-verify`), takes about a minute and is **report only**: it has no thresholds, so a low score never
+fails the build.
+
+- Report: `target/pit-reports/index.html` (`mutations.xml` next to it).
+- Alone, without the rest of the lifecycle: `mvn test-compile pitest:mutationCoverage`.
+- Skip: `-DskipPitest=true`.
+- Baseline (2026-11-03): 291 mutants, 268 killed (92 %), line coverage of the mutated classes 99 %.
+- Tests run on one thread (`LogCapture` swaps `System.err`). The POSIX permission tests are skipped as root, so
+  the "unreadable file" paths show up as surviving mutants there.
+
 ## Benchmarks
 
 JMH benchmarks live in `src/benchmark/java` and are only built with the `benchmarks` profile, so

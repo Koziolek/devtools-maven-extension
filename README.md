@@ -288,6 +288,20 @@ fails the build.
 - Tests run on one thread (`LogCapture` swaps `System.err`). The POSIX permission tests are skipped as root, so
   the "unreadable file" paths show up as surviving mutants there.
 
+## Static analysis (PMD)
+
+[PMD](https://pmd.github.io) looks for bug-prone and design problems. It runs in `mvn verify` (execution
+`pmd-verify`) and is **report only**: `failOnViolation=false`. CPD (copy-paste detection) is not used, because
+SonarQube detects duplicates itself.
+
+- Rules: `pmd-ruleset.xml` (the PMD categories best practices, error prone, design, performance, security and
+  multithreading, minus the rules that are noise here or already covered by checkstyle and Sonar; each exclusion
+  has a comment). Main sources only.
+- Report: `target/pmd.xml` and `target/pmd.sarif.json`. SonarQube imports the SARIF through `sonar.sarifReportPaths`.
+- Alone: `mvn pmd:pmd`; skip: `-Dpmd.skip=true`.
+- Trial run (2026-11-04): the full categories gave 46 findings, of which about 30 were noise
+  (`UseConcurrentHashMap`, `LawOfDemeter`, `GuardLogStatement`, ...); the tuned ruleset gives 14.
+
 ## Dependency vulnerabilities (OWASP)
 
 [OWASP Dependency-Check](https://dependency-check.github.io/DependencyCheck/) compares the runtime dependencies with

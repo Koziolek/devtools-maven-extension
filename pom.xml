@@ -58,10 +58,10 @@
         <!-- Where JaCoCo's `report` (bound to `test` below) writes the XML SonarQube reads. -->
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml
         </sonar.coverage.jacoco.xmlReportPaths>
-        <!-- Dependency-Check's SARIF, imported by SonarQube's built-in SARIF sensor (no server plugin needed). The
+        <!-- Dependency-Check's and PMD's SARIF, imported by SonarQube's built-in SARIF sensor (no server plugin needed). The
              jar locations in it lie outside the project, so Sonar attaches the issues to the project itself.
              A missing file (check skipped) only logs a WARNING. -->
-        <sonar.sarifReportPaths>${project.build.directory}/dependency-check-report.sarif</sonar.sarifReportPaths>
+        <sonar.sarifReportPaths>${project.build.directory}/dependency-check-report.sarif,${project.build.directory}/pmd.sarif.json</sonar.sarifReportPaths>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
@@ -80,6 +80,7 @@
         <maven-site-plugin.version>3.22.0</maven-site-plugin.version>
         <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
         <pitest-maven.version>1.30.1</pitest-maven.version>
+        <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven-surefire-plugin.version>3.6.0</maven-surefire-plugin.version>
         <spotless-maven-plugin.version>3.10.2</spotless-maven-plugin.version>
@@ -293,6 +294,37 @@
                         <phase>test</phase>
                         <goals>
                             <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <!-- Static analysis, report only: runs at `verify`, never fails the build (failOnViolation=false).
+                     Reports: target/pmd.xml and target/pmd.sarif.json (imported by SonarQube, see
+                     sonar.sarifReportPaths). CPD is deliberately absent: Sonar detects duplicates itself.
+                     Alone: `mvn pmd:pmd`; skip: `-Dpmd.skip=true`. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>${maven-pmd-plugin.version}</version>
+                <configuration>
+                    <rulesets>
+                        <ruleset>pmd-ruleset.xml</ruleset>
+                    </rulesets>
+                    <targetJdk>${maven.compiler.release}</targetJdk>
+                    <failOnViolation>false</failOnViolation>
+                    <printFailingErrors>false</printFailingErrors>
+                    <includeTests>false</includeTests>
+                    <!-- The plugin has no `sarif` keyword; a renderer class name is accepted as a custom format
+                         and writes target/pmd.sarif.json. -->
+                    <format>net.sourceforge.pmd.renderers.SarifRenderer</format>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>pmd-verify</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>pmd</goal>
                         </goals>
                     </execution>
                 </executions>
